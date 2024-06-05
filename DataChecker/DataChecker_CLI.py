@@ -14,10 +14,10 @@ from ActVibModules.DSPFuncs import easyFourier
 _PLT_WIDTH, _PLT_HEIGHT = 800, 300
 
 class ConfigError(Exception):
-    # Erro utilizado pela classe DataHolder para indicar que dac e/ou imu precisam ser definidos.
+    # Erro utilizado pela classe DataHolder
     def __init__(self):
-        message = "O objeto não está configurado. Defina o dac e imu de interesse utilizando (self.set_config)."
-        super().__init__(message)
+        mensagem = "O objeto não está configurado. Defina o dac e imu de interesse utilizando (self.set_config)."
+        super().__init__(mensagem)
 
 class DataHolder():
     def __init__(self, path:str|os.PathLike, *, dac:Optional[str]= None, imu:Optional[str]= None):
@@ -34,7 +34,7 @@ class DataHolder():
             imu e a variável de interesse na análise - Ex.: 'imu2accz'
         
         * dac e imu podem ser fornecidos posteriormentes com set_config.
-          Algumas funções ficam desabilitadas até a devida configuração de dac e imu.
+          Algumas funções ficam desabilitadas até a devida configuração do dac e imu.
         """
         self.name = os.path.basename(path)
         self.data = ActVibData(path)
@@ -144,16 +144,70 @@ class DataHolder():
             self.generate_fir_freq()
             self.plt_fir_freq()
 
-def main(args):
-    data1 = DataHolder(args.path, dac='dac1', imu='imu2accz')
-    
-    if args.scatter or args.all:
-        data1.plt_scatter()
-    if args.impulse or args.all:
-        data1.plt_fir()
-    if args.freq or args.all:
-        data1.plt_fir_freq()
+def main(path: str|os.PathLike, graphs: list[str]):
+    def plot_data(feather_path):
+        data = DataHolder(feather_path, dac='dac1', imu='imu2accz')
         
+        graph_plotters = {'scatter':    data.plt_scatter,
+                          'impulse':    data.plt_fir,
+                          'freq':       data.plt_fir_freq}
+        
+        if 'all' in graphs:
+            for plot in graph_plotters.values():
+                plot()
+            return None
+        
+        for graph in graphs:
+            graph_plotters[graph]()
+    
+    if os.path.isfile(path):
+        plot_data(path)
+        return None
+    
+    # Se o caminho aponta uma pasta
+    files = os.listdir(path) 
+    file_paths = [os.path.join(path, file) for file in files]
+    num_files = len(file_paths)
+    
+    i = 0
+    def processar_input(user_input: str):
+        nonlocal i 
+        try:
+            user_input = int(user_input)
+        except ValueError:
+            pass
+            
+        match user_input:
+            case '':
+                return False
+            case 'q':
+                return True
+            case str():
+                i = files.index(user_input)
+                return False
+            case int() if user_input <= num_files:
+                i = int(user_input) - 1
+                return False
+            case _:
+                new_in = input("Opção não suportada. Entre um valor válido: ")
+                return processar_input(new_in)
+    
+    print("Arquivos encontrados. Pressione enter para ir ao próximo plot ou digite 'q' para sair.")
+    user_in = input("Para acessar um plot específico, digite o nome ou índice do arquivo: ")
+    if processar_input(user_in): return None
+    
+    while True:
+        if i == num_files:
+            break
+        
+        print(f"Plotando arquivo {files[i]} ({i+1}/{num_files})...")
+        plot_data(file_paths[i])
+        
+        user_in = input("Plot concluído. Pressione enter para seguir ou digite sua opção: ")
+        if processar_input(user_in): break
+
+        i+= 1
+    
 if "__main__" == __name__:
     import argparse
     
@@ -184,4 +238,10 @@ if "__main__" == __name__:
     if not (args.scatter or args.impulse or args.freq or args.all):
         parser.error("Nenhum plot solicitado. Forneça pelo menos uma flag para plotar")
     
-    main(args)
+    # Input handler
+    graph_input_arr = [args.scatter, args.impulse, args.freq, args.all]
+    graph_types = ['scatter', 'impulse', 'freq', 'all']
+    
+    selected_graphs = [graph_types[i] for i in range(len(graph_types)) if graph_input_arr[i]]
+    
+    main(args.path, selected_graphs)
