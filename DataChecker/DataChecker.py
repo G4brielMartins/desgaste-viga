@@ -230,7 +230,7 @@ if "__main__" == __name__:
     path = input("--> ")
     
     print("Defina o dac utilizado:")
-    dac = input("--> ")
+    dac = int(input("--> "))
 
     print("\nOs gráficos disponíveis são:")
     print(" - scatter (dispersão)")
