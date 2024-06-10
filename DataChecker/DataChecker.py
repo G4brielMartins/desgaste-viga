@@ -169,9 +169,10 @@ def main(path: str|os.PathLike, graphs: list[str]):
     file_paths = [os.path.join(path, file) for file in files]
     num_files = len(file_paths)
     
-    i = 0
+    i = 1
+    plot_all = False
     def processar_input(user_input: str):
-        nonlocal i 
+        nonlocal i, plot_all
         try:
             user_input = int(user_input)
         except ValueError:
@@ -182,34 +183,37 @@ def main(path: str|os.PathLike, graphs: list[str]):
                 return False
             case 'q':
                 return True
-            case str():
+            case 'all':
+                plot_all = True
+                return False
+            case str() if user_input in files:
                 i = files.index(user_input)
                 return False
-            case int() if user_input <= num_files:
-                i = int(user_input) - 1
+            case int() if user_input <= num_files + 1:
+                i = int(user_input)
                 return False
             case _:
                 new_in = input("Opção não suportada. Entre um valor válido: ")
                 return processar_input(new_in)
     
-    print("\nArquivos encontrados. Pressione enter para ir ao próximo plot ou digite 'q' para sair.")
-    user_in = input("Para acessar um plot específico, digite o nome ou índice do arquivo: ")
+    print("Arquivos encontrados. Pressione enter para prosseguir ou digite 'q' para sair.")
+    user_in = input("Para acessar um plot específico, digite o nome ou índice do arquivo. 'all' plota todos os arquivos. ")
     if processar_input(user_in): return None
     
     while True:
-        if i == num_files:
+        if i > num_files:
             break
-        
-        print(f"Plotando arquivo {files[i]} ({i+1}/{num_files})...")
-        plot_data(file_paths[i])
-        
-        user_in = input("Plot concluído. Pressione enter para seguir ou digite sua opção: ")
-        if processar_input(user_in): break
+
+        print(f"Plotando arquivo {files[i-1]} ({i}/{num_files})...")
+        plot_data(file_paths[i-1])
 
         i+= 1
+        if not plot_all:
+            user_in = input("Plot concluído. Pressione enter para seguir ou digite sua opção: ")
+        if processar_input(user_in): break
 
 if "__main__" == __name__:
-    print("Data Checker iniciado. Entre o caminho do arquivo ou pasta com arquivos a serem plotados.")
+    print("Data Checker iniciado. Entre o caminho do arquivo ou pasta com arquivos a serem plotados. ")
     path = input("--> ")
     
     print("\nOs gráficos disponíveis são:")
