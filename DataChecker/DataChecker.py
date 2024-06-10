@@ -19,6 +19,7 @@ class ConfigError(Exception):
         mensagem = "O objeto não está configurado. Defina o dac e imu de interesse utilizando (self.set_config)."
         super().__init__(mensagem)
 
+
 class DataHolder():
     def __init__(self, path:str|os.PathLike, *, dac:Optional[str]= None, imu:Optional[str]= None):
         """
@@ -144,9 +145,19 @@ class DataHolder():
             self.generate_fir_freq()
             self.plt_fir_freq()
 
-def main(path: str|os.PathLike, graphs: list[str]):
+
+def drive_importer(url: str) -> str:
+    import gdown
+
+    raiz = os.getcwd()
+    os.chdir(output_dir)
+    download(link, fuzzy=True)
+    os.chdir(raiz)
+
+
+def main(path: str|os.PathLike, graphs: list[str], dac: Optional[int] = None, plot_all: bool = False):
     def plot_data(feather_path):
-        data = DataHolder(feather_path, dac='dac1', imu='imu2accz')
+        data = DataHolder(feather_path, dac=f'dac[dac]', imu='imu2accz')
         
         graph_plotters = {'scatter':    data.plt_scatter,
                           'impulse':    data.plt_fir,
@@ -170,9 +181,9 @@ def main(path: str|os.PathLike, graphs: list[str]):
     num_files = len(file_paths)
     
     i = 1
-    plot_all = False
     def processar_input(user_input: str):
         nonlocal i, plot_all
+
         try:
             user_input = int(user_input)
         except ValueError:
@@ -195,10 +206,10 @@ def main(path: str|os.PathLike, graphs: list[str]):
             case _:
                 new_in = input("Opção não suportada. Entre um valor válido: ")
                 return processar_input(new_in)
-    
-    print("Arquivos encontrados. Pressione enter para prosseguir ou digite 'q' para sair.")
-    user_in = input("Para acessar um plot específico, digite o nome ou índice do arquivo. 'all' plota todos os arquivos. ")
-    if processar_input(user_in): return None
+    if not plot_all:
+        print("Arquivos encontrados. Pressione enter para prosseguir ou digite 'q' para sair.")
+        user_in = input("Para acessar um plot específico, digite o nome ou índice do arquivo. 'all' plota todos os arquivos. ")
+        if processar_input(user_in): return None
     
     while True:
         if i > num_files:
@@ -208,14 +219,19 @@ def main(path: str|os.PathLike, graphs: list[str]):
         plot_data(file_paths[i-1])
 
         i+= 1
-        if not plot_all:
-            user_in = input("Plot concluído. Pressione enter para seguir ou digite sua opção: ")
+
+        if plot_all: continue
+
+        user_in = input("Plot concluído. Pressione enter para seguir ou digite sua opção: ")
         if processar_input(user_in): break
 
 if "__main__" == __name__:
     print("Data Checker iniciado. Entre o caminho do arquivo ou pasta com arquivos a serem plotados. ")
     path = input("--> ")
     
+    print("Defina o dac utilizado:")
+    dac = input("--> ")
+
     print("\nOs gráficos disponíveis são:")
     print(" - scatter (dispersão)")
     print(" - impulse (resposta ao impulso)")
@@ -235,4 +251,4 @@ if "__main__" == __name__:
         if not (set(selected_graphs) - graph_options):
             break
     
-    main(path, selected_graphs)
+    main(path, selected_graphs, dac)

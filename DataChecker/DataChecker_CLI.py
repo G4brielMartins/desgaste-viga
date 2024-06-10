@@ -11,13 +11,15 @@ if "__main__" == __name__:
     parser = argparse.ArgumentParser(
         prog= "DataChecker",
         description= "Plot e análise de dados de vibração obtidos com o firmware Actvib",
-        usage= "DataChecker [-h] [-s -i -f -a] FEATHER_PATH",
+        usage= "DataChecker [-h] [-A] [-s -i -f -a] FEATHER_PATH DAC",
         add_help= False        
     )
     parser.add_argument('-h', '--help', action= 'help', default=argparse.SUPPRESS,
                         help= "escreve esta mensagem de ajuda e sai do programa")
     parser.add_argument('path', metavar= 'FEATHER_PATH',
-                        help= "caminho do arquivo feather com os dados a serem análisados")
+                        help= "caminho do arquivo feather com os dados a serem análisados") 
+    parser.add_argument('-A', '--all_files', action= 'store_true',
+                        help= "plota todos os arquivos sequencialmente (desabilita seletor de arquivos)")
 
     # Configuração das flags de plot do CLI
     plots = parser.add_argument_group('plots', "Flags para configurar quais plots serão feitos")
@@ -40,4 +42,4 @@ if "__main__" == __name__:
     
     selected_graphs = [graph_types[i] for i in range(len(graph_types)) if graph_input_arr[i]]
     
-    main(args.path, selected_graphs)
+    main(args.path, selected_graphs, args.dac, args.all_files)
