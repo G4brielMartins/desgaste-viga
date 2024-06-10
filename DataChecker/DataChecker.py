@@ -155,9 +155,9 @@ def drive_importer(url: str) -> str:
     os.chdir(raiz)
 
 
-def main(path: str|os.PathLike, graphs: list[str], dac: Optional[int] = None, plot_all: bool = False):
+def main(path: str|os.PathLike, graphs: list[str], dac: str, plot_all: bool = False):
     def plot_data(feather_path):
-        data = DataHolder(feather_path, dac=f'dac[dac]', imu='imu2accz')
+        data = DataHolder(feather_path, dac=dac, imu='imu2accz')
         
         graph_plotters = {'scatter':    data.plt_scatter,
                           'impulse':    data.plt_fir,
@@ -230,7 +230,7 @@ if "__main__" == __name__:
     path = input("--> ")
     
     print("Defina o dac utilizado:")
-    dac = int(input("--> "))
+    dac = input("--> ")
 
     print("\nOs gráficos disponíveis são:")
     print(" - scatter (dispersão)")
