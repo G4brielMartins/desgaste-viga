@@ -147,17 +147,25 @@ class DataHolder():
 
 
 def drive_importer(url: str) -> str:
-    import gdown
-
+    from gdown import download_folder
+    
+    out_folder = 'Dados'
+    if not os.path.exists(out_folder):
+        os.mkdir(out_folder)
+    
     raiz = os.getcwd()
-    os.chdir(output_dir)
-    download(link, fuzzy=True)
+    os.chdir(out_folder)
+    paths = download_folder(url, quiet= True)
     os.chdir(raiz)
 
+    folder_path = os.path.dirname(os.path.abspath(paths[0]))
 
-def main(path: str|os.PathLike, graphs: list[str], dac: str, plot_all: bool = False):
+    return folder_path
+
+
+def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = False):
     def plot_data(feather_path):
-        data = DataHolder(feather_path, dac=dac, imu='imu2accz')
+        data = DataHolder(feather_path, dac=f'dac{dac}', imu='imu2accz')
         
         graph_plotters = {'scatter':    data.plt_scatter,
                           'impulse':    data.plt_fir,
@@ -170,7 +178,12 @@ def main(path: str|os.PathLike, graphs: list[str], dac: str, plot_all: bool = Fa
         
         for graph in graphs:
             graph_plotters[graph]()
-    
+
+    if path.startswith('http'):
+        print("URL reconhecido.")
+        path = drive_importer(path)
+        print("Os dados foram baixados do Google Drive.\n")
+
     if os.path.isfile(path):
         plot_data(path)
         return None
@@ -206,6 +219,7 @@ def main(path: str|os.PathLike, graphs: list[str], dac: str, plot_all: bool = Fa
             case _:
                 new_in = input("Opção não suportada. Entre um valor válido: ")
                 return processar_input(new_in)
+
     if not plot_all:
         print("Arquivos encontrados. Pressione enter para prosseguir ou digite 'q' para sair.")
         user_in = input("Para acessar um plot específico, digite o nome ou índice do arquivo. 'all' plota todos os arquivos. ")
@@ -229,8 +243,8 @@ if "__main__" == __name__:
     print("Data Checker iniciado. Entre o caminho do arquivo ou pasta com arquivos a serem plotados. ")
     path = input("--> ")
     
-    print("Defina o dac utilizado:")
-    dac = input("--> ")
+    print("Defina o dac utilizado (1, 2...):")
+    dac = int(input("--> "))
 
     print("\nOs gráficos disponíveis são:")
     print(" - scatter (dispersão)")

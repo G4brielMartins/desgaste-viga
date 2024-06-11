@@ -16,8 +16,10 @@ if "__main__" == __name__:
     )
     parser.add_argument('-h', '--help', action= 'help', default=argparse.SUPPRESS,
                         help= "escreve esta mensagem de ajuda e sai do programa")
-    parser.add_argument('path', metavar= 'FEATHER_PATH',
-                        help= "caminho do arquivo feather com os dados a serem análisados") 
+    parser.add_argument('path', type= str, metavar= 'FEATHER_PATH',
+                        help= "caminho do arquivo feather com os dados a serem análisados")
+    parser.add_argument('dac', type= int, metavar= 'DAC',
+                        help= "dac a ser utilizado (1, 2...)")
     parser.add_argument('-A', '--all_files', action= 'store_true',
                         help= "plota todos os arquivos sequencialmente (desabilita seletor de arquivos)")
 
