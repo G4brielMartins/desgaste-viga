@@ -1,0 +1,2 @@
+git+https://github.com/eduardobatista/ActVibModules.git
+plotly
