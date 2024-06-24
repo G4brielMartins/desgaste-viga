@@ -12,7 +12,6 @@ from ActVibModules.ActVibSystem import ActVibData
 from ActVibModules.Adaptive import FIRNLMS
 from ActVibModules.DSPFuncs import easyFourier
 
-PLT_WIDTH, PLT_HEIGHT = 800, 300
 
 class ConfigError(Exception):
     # Erro utilizado pela classe DataHolder
@@ -147,11 +146,19 @@ class DataHolder():
         except AttributeError:
             self.generate_fir_freq()
             trace = self.get_fir_freq()
-            
         return trace
 
 
 def drive_importer(url: str) -> str:
+    """
+    Importa uma pasta do Google Drive para o diretório local 'Dados/'.
+
+    Parameters
+    ----------
+    url : str
+        Link da pasta do Google Drive.
+        * O arquivo deve estar com acesso 'Qualquer pessoa com o link'
+    """
     from gdown import download_folder
     
     out_folder = 'Dados'
@@ -165,7 +172,8 @@ def drive_importer(url: str) -> str:
 
     folder_path = os.path.dirname(os.path.abspath(paths[0]))
 
-    return folder_pathatter()
+    return folder_path
+
 
 def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = False):
     def plot_data(feather_path):
