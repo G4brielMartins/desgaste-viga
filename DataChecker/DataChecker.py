@@ -108,13 +108,19 @@ class DataHolder():
     
     def get_scatters(self, imus:list[str]= ['imu2accz', 'imu1accz']) -> list[go.Scatter]:
         """
-        Plota o gráfico de dispersão dos dados armazenados.
+        Cria os traços de dispersão dos dados armazenados.
 
         Parameters
         ----------
         imus : list[str], optional
-            Lista de imus e variáveis a serem plotados. Por padrão ['imu2accz', 'imu1accz']
-        """        
+            Lista de imus a serem plotados. Por padrão ['imu2accz', 'imu1accz']
+
+        Returns
+        -------
+        list[go.Scatter]
+            Traços de dispersão gerados.
+            * Devem ser adcionados em uma figura para realizar a plotagem.
+        """
         traces = []
         for imu in imus:
             traces.append(go.Scatter(x=self.data['time'], y=self.data[imu], name=imu))
@@ -122,9 +128,15 @@ class DataHolder():
         
     def get_fir(self) -> go.Scatter:
         """
-        Plota o gráfico da resposta ao impulso armazenada em (self.fir).
+        Cria o traço da resposta ao impulso armazenada em (self.fir).
         Calcula (self.fir) caso este não exista.
-        """        
+
+        Returns
+        -------
+        go.Scatter
+            Traço da resposta ao impulso.
+            * Deve ser adicionado a uma figura para realizar a plotagem.
+        """
         try:
             y = self.fir.ww
             x = list(range(len(self.fir.ww)))
@@ -137,8 +149,14 @@ class DataHolder():
     
     def get_fir_freq(self) -> go.Scatter:
         """
-        Plota o gráfico da resposta ao impulso no domínio da frequência armazenada em (self.fir_freq).
+        Cria o traço da resposta ao impulso no domínio da frequência armazenada em (self.fir_freq).
         Calcula (self.fir_freq) caso este não exista.
+
+        Returns
+        -------
+        go.Scatter
+            Traço da resposta ao impulso no domínio da frequência.
+            * Deve ser adicionado a uma figura para realizar a plotagem.
         """        
         try:
             y, x = self.fir_freq
@@ -175,9 +193,42 @@ def drive_importer(url: str) -> str:
     return folder_path
 
 
-def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = False):
-    def plot_data(feather_path):
+def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = False) -> None:
+    """
+    Corpo principal do programa.
+
+    Parameters
+    ----------
+    path : str | os.PathLike
+        Caminho da pasta, caminho do arquivo ou URL do Google Drive correspondente aos dados a serem plotados.
+    graphs : list[str]
+        Opções de gráficos selecionadas para plotagem.
+    dac : int
+        Índice do DAC a ser utilizado (1, 2, 3 ...).
+    plot_all : bool, optional
+        Flag para plotar todos os arquivos em sequência, ignorando o navegador de arquivos.
+    """    
+    def plot_data(feather_path: str|os.PathLike) -> None:
+        """
+        Função para plotagem dos dados a partir dos inputs do usuário.
+        * Deve ser chamada somente no contexto da função main.
+
+        Parameters
+        ----------
+        feather_path : str | os.PathLike
+            Caminho do arquivo feather a ser plotado.
+        
+        Nonlocal Parameters
+        ----------
+        Estes parâmetros vêm do escopo da função main.
+        
+        graphs : list[str]
+            Opções de gráficos selecionadas para plotagem.
+        dac : int
+            Índice do DAC a ser utilizado (1, 2, 3 ...).
+        """                
         nonlocal graphs, dac
+        
         data = DataHolder(feather_path, dac=f'dac{dac}', imu='imu2accz')
         fig = make_subplots(2, 2)
         fig.update_layout(title=data.name)
@@ -196,19 +247,21 @@ def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = Fa
         if 'scatter' in graphs:
             scatters = traces.pop(0)
             for i, trace in enumerate(scatters):
-            	fig.add_trace(trace, row=i+1, col=col)
-            col+=1
+                fig.add_trace(trace, row=i+1, col=col)
+            col += 1
         
         for i, trace in enumerate(traces):
             fig.add_trace(trace, row=i+1, col=col)
         
         fig.show()
 
+    # Se o caminho é um URL
     if path.startswith('http'):
         print("URL reconhecido.")
-        path = drive_importer(path)
+        path = drive_importer(path) # Atualiza o caminho para o local da pasta baixada
         print("Os dados foram baixados do Google Drive.\n")
 
+    # Se o caminho aponta um arquivo
     if os.path.isfile(path):
         plot_data(path)
         return None
@@ -218,8 +271,32 @@ def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = Fa
     file_paths = [os.path.join(path, file) for file in files]
     num_files = len(file_paths)
     
+    # Configuração da interface de navegação entre arquivos
     i = 1
-    def processar_input(user_input: str):
+    def processar_input(user_input: str) -> bool:
+        """
+        Trata o input do usuário durante a nevegação entre arquivos.
+        * Deve ser chamada somente no contexto da função main.
+
+        Parameters
+        ----------
+        user_input : str
+            O input do usuário.
+
+        Returns
+        -------
+        bool
+            Flag de solicitação de saída (True - encerra o programa).
+        
+        Nonlocal Parameters
+        ----------
+        Estes parâmetros vêm do escopo da função main.
+        
+        i : int
+            Índice do arquivo selecionado pelo navegador de arquivos.
+        plot_all : bool
+            Flag para plotar todos os arquivos em sequência, ignorando o navegador de arquivos.
+        """        
         nonlocal i, plot_all
 
         try:
@@ -250,6 +327,7 @@ def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = Fa
         user_in = input("Para acessar um plot específico, digite o nome ou índice do arquivo. 'all' plota todos os arquivos. ")
         if processar_input(user_in): return None
     
+    # Loop do gerenciador de arquivos a serem plotados
     while True:
         if i > num_files:
             break
@@ -265,6 +343,7 @@ def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = Fa
         if processar_input(user_in): break
 
 if "__main__" == __name__:
+    # Interface de terminal para coleta dos parâmetros utilizados na main
     print("Data Checker iniciado. Entre o caminho do arquivo ou pasta com arquivos a serem plotados. ")
     path = input("--> ")
     
@@ -289,5 +368,7 @@ if "__main__" == __name__:
         selected_graphs = input_graphs.split()
         if not (set(selected_graphs) - graph_options):
             break
+        
+        print("Opção inválida. Entre apenas opções disponíveis.\n")
     
     main(path, selected_graphs, dac)

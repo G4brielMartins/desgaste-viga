@@ -38,7 +38,7 @@ if "__main__" == __name__:
     if not (args.scatter or args.impulse or args.freq or args.all):
         parser.error("Nenhum plot solicitado. Forneça pelo menos uma flag para plotar")
     
-    # Input handler
+    # Tratamento do input fornecido pelo usuário
     graph_input_arr = [args.scatter, args.impulse, args.freq, args.all]
     graph_types = ['scatter', 'impulse', 'freq', 'all']
     
