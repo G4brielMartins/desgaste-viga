@@ -1,5 +1,6 @@
 """
 Programa para plot e verificação de integridade de dados gerados com o firmware ActVib.
+O programa funciona independentemente, mas é um módulo essencial para o funcionamento das demais ferramentas.
 """
 
 import os
@@ -20,7 +21,7 @@ class ConfigError(Exception):
         super().__init__(mensagem)
 
 
-class DataHolder():
+class DataHandler():
     def __init__(self, path:str|os.PathLike, *, dac:Optional[str]= None, imu:Optional[str]= None):
         """
         Classe para armazenar informações referentes ao grupo de dados e facilitar sua manipulação.
@@ -167,7 +168,7 @@ class DataHolder():
         return trace
 
 
-def drive_importer(url: str) -> str:
+def drive_importer(url: str, *, out_folder: str = "Dados", quiet: bool = True) -> str:
     """
     Importa uma pasta do Google Drive para o diretório local 'Dados/'.
 
@@ -179,13 +180,12 @@ def drive_importer(url: str) -> str:
     """
     from gdown import download_folder
     
-    out_folder = 'Dados'
     if not os.path.exists(out_folder):
         os.mkdir(out_folder)
     
     raiz = os.getcwd()
     os.chdir(out_folder)
-    paths = download_folder(url, quiet= True)
+    paths = download_folder(url, quiet=quiet)
     os.chdir(raiz)
 
     folder_path = os.path.dirname(os.path.abspath(paths[0]))
@@ -229,7 +229,7 @@ def main(path: str|os.PathLike, graphs: list[str], dac: int, plot_all: bool = Fa
         """                
         nonlocal graphs, dac
         
-        data = DataHolder(feather_path, dac=f'dac{dac}', imu='imu2accz')
+        data = DataHandler(feather_path, dac=f'dac{dac}', imu='imu2accz')
         fig = make_subplots(2, 2)
         fig.update_layout(title=data.name)
         get_trace = {'scatter': data.get_scatters,

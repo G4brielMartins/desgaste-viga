@@ -1,5 +1,7 @@
 """
 CLI para plot e verificação de integridade de dados gerados com o firmware ActVib.
+
+* Requer o arquivo DataChecker.py para executar.
 """
 
 from DataChecker import main
