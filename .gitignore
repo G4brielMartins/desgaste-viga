@@ -1,2 +1,4 @@
 .venv
 Dados/
+__pycache__/
+Tools/__pycache__
