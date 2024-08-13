@@ -1,11 +1,20 @@
 import os
 from functools import wraps
+from multiprocessing import Pool
 from typing import Callable, Iterable, Any
 
 import numpy as np
+import pandas as pd
 
 from scipy.signal import find_peaks
 from Tools.DataChecker import DataHandler
+
+
+class PathError(Exception):
+    # Erro para sinalizar nomenclatura incopatível de pastas e/ou arquivos.
+    def __init__(self, path: str|os.PathLike):
+        mensagem = f"Formatação inválida do caminho {path}\n"
+        super().__init__(mensagem)
 
 
 def atuador(path: str|os.PathLike) -> int:
@@ -23,7 +32,10 @@ def atuador(path: str|os.PathLike) -> int:
         Índice do atuador (1 -> dac1, 2 -> dac2 ...)
     """
     file_name = os.path.basename(path)
-    atuador = int(file_name.split("_")[1][1])
+    try:
+        atuador = int(file_name.split("_")[1][1])
+    except (IndexError, ValueError) as exc:
+        raise PathError(path) from exc
     
     return atuador
 
@@ -43,8 +55,11 @@ def desgaste(path: str|os.PathLike) -> int:
         Nível de desgaste (0 -> viga intacta)
     """
     dir_path = os.path.dirname(path)
-    dir = dir_path[dir_path.rfind('Viga'):]
-    desgaste_lvl = 0 if dir.find('Intacta') > 0 else int(dir[-1])
+    try:
+        dir = dir_path[dir_path.rfind('Viga'):]
+        desgaste_lvl = 0 if dir.find('Intacta') > 0 else int(dir[-1])
+    except (IndexError, ValueError) as exc:
+        raise PathError(path) from exc
     
     return desgaste_lvl
 
@@ -53,6 +68,7 @@ def enable_arguments_list(func: Callable) -> Any:
     """
     Decorador para habilitar que a função receba uma lista de argumentos.
     Utilizado para dar suporte ao uso da biblioteca multiprocessing.
+    *Substituído pela implementação com pool.starmap() - facilita rotulagem, mas é menos eficiente.
     """
     @wraps(func)
     def wrappper(*args, **kwargs):
@@ -63,10 +79,18 @@ def enable_arguments_list(func: Callable) -> Any:
     return wrappper
 
 
-@enable_arguments_list
-def achar_ressonancias(feather: str|os.PathLike, imu: str, *, distancia: int = 10) -> list[int]:
+def gerar_resposta_em_frequencia(feather: str|os.PathLike, dac: int, imu: str) -> np.array:
+    data = DataHandler(feather, dac=f'dac{dac}', imu=imu)
+    data.generate_fir_freq()
+    
+    return np.array(data.fir_freq)
+
+
+def achar_ressonancias(feather: str|os.PathLike, imu: str, altura_rel: float = .33, 
+                       distancia: int = 8, proeminencia: float = 30) -> tuple[list[float],list[float]]:
     """
-    Encontra as frequências de ressonância identificadas na amostra.
+    Encontra as frequências de ressonância identificadas na amostra e sua amplitude.
+    Os argumentos configuram a função scipy.signal.find_peaks() (documentação disponível em https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html)
 
     Parameters
     ----------
@@ -77,22 +101,29 @@ def achar_ressonancias(feather: str|os.PathLike, imu: str, *, distancia: int = 1
     distancia : int, optional
         Ajuste de sensibilidade pela distância mínima entre dois picos.
         Por padrão, assume o valor 10.
+    altura_rel : float, optional
+        Ajuste de sensibilidade pela amplitude do pico em relação à média.
+        Por padrão, assume o valor .33 (picos devem ser .3 vezes maiores que a média)
+    proeminencia : float, optional
+        Ajuste de sensibilidade pela proeminencia do pico.
+        Por padrão, assume o valor 30.
+        
     Returns
     -------
-    list[int]
-        Lista com o valor de cada frequência de ressonância, da menor para a maior.
+    amplitudes : list[float]
+        Lista de amplitudes em cada frequência de ressonância.
+    ressonanicas : list[float]
+        Lista de frequências de ressonância da amostra.
     """
-    dac_n = atuador(feather)
-    
-    data = DataHandler(feather, dac=f'dac{dac_n}', imu=imu)
-    data.generate_fir_freq()
-    fir_freq = np.array(data.fir_freq)
+    dac = atuador(feather)
+    fir_freq = gerar_resposta_em_frequencia(feather, dac, imu)
 
-    altura = np.mean(fir_freq[0]) + abs(np.mean(fir_freq[0]) * .33)
-    indices_picos = find_peaks(fir_freq[0], height=altura, width=distancia)[0]
-    frequencias = [fir_freq[1, i] for i in indices_picos]
+    altura = np.mean(fir_freq[0]) + abs(np.mean(fir_freq[0]) * altura_rel)
+    picos = find_peaks(fir_freq[0], height=altura, width=distancia, prominence=proeminencia)[0]
+    np_data = np.array([fir_freq[:, i] for i in picos])
+    amplitudes, ressonancias = np.split(np_data, 2, 1)
     
-    return frequencias
+    return amplitudes, ressonancias
 
 
 def achar_feathers(pasta: str|os.PathLike) -> list[str]:
@@ -122,7 +153,7 @@ def achar_feathers(pasta: str|os.PathLike) -> list[str]:
     return buffer
 
 
-def agrupar_por_desgaste(feather_paths: list[str|os.PathLike]) -> list[list[str]]:
+def agrupar_por_desgaste(feather_paths: list[str|os.PathLike], *, niveis_desgaste: int = 9) -> list[list[str]]:
     """
     Separa os arquivos fornecidos pelo seu nível de desgaste.
 
@@ -130,6 +161,8 @@ def agrupar_por_desgaste(feather_paths: list[str|os.PathLike]) -> list[list[str]
     ----------
     feather_paths : list[str | os.PathLike]
         Lista com os arquivos a serem organizados.
+    niveis_desgaste : int
+        Quantidade de níveis de desgaste presenetes nos dados. (Deve ser maior ou igual a quantidade real)
 
     Returns
     -------
@@ -137,7 +170,7 @@ def agrupar_por_desgaste(feather_paths: list[str|os.PathLike]) -> list[list[str]
         Lista de amostras separadas por desgaste.
         Os índices da lista correspondem ao desgaste (lista[3] retorna uma lista com todas as amostras de desgaste nível 3)
     """
-    sorted_paths = [[None] for _ in range(8)]
+    sorted_paths = [[None] for _ in range(niveis_desgaste)]
     for path in feather_paths:
         d = desgaste(path)
         if sorted_paths[d][0] is None:
@@ -145,4 +178,24 @@ def agrupar_por_desgaste(feather_paths: list[str|os.PathLike]) -> list[list[str]
         else:
             sorted_paths[d].append(path)
             
-    return sorted_paths
+    return sorted_paths    
+    
+    
+def importar_respostas_em_frequencia(path: str|os.PathLike, imus = list[str]) -> pd.DataFrame:
+    feathers_paths = achar_feathers(path)
+    feathers_agrupados = agrupar_por_desgaste(feathers_paths)
+    
+    dfs = []
+    for desgaste_lvl, feathers in enumerate(feathers_agrupados):
+        if feathers == [None]:
+            continue # ignora níveis de desgaste sem amostras
+        
+        name_tags = [os.path.basename(feather)[:-8] for feather in feathers]
+        for imu in imus:
+            inputs = [(feather, atuador(feather), imu) for feather in feathers]
+            with Pool() as pool:
+                amplitudes = [i[0] for i in pool.starmap(gerar_resposta_em_frequencia, inputs)]
+            index = pd.MultiIndex.from_product([[desgaste_lvl], name_tags], names= ["Desgaste", "Amostra"])
+            dfs.append(pd.DataFrame(amplitudes, index=index))
+    
+    return pd.concat(dfs)

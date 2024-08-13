@@ -15,8 +15,8 @@ from ActVibModules.DSPFuncs import easyFourier
 
 
 class ConfigError(Exception):
-    # Erro utilizado pela classe DataHolder
-    def __init__(self):
+    # Erro utilizado pela classe DataHandler
+    def __init__(self, path: str|os.PathLike):
         mensagem = "O objeto não está configurado. Defina o dac e imu de interesse utilizando (self.set_config)."
         super().__init__(mensagem)
 
@@ -80,12 +80,14 @@ class DataHandler():
                 x = self.data[self.dac].values - self.data[self.dac].mean()
                 y = self.data[self.imu].values - self.data[self.imu].mean()
                 self.fir.run(x,y)
+        else:
+            raise ConfigError
     
     def generate_fir_freq(self) -> None:
         """
         Calcula a resposta ao impulso no domínio da frequência e armazena em (self.fir_freq).
         * dac e imu precisam estar configurados.
-        """        
+        """
         try:
             self.fir_freq = easyFourier(self.fir.ww,fs=416)
         except AttributeError:
