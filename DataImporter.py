@@ -80,6 +80,23 @@ def enable_arguments_list(func: Callable) -> Any:
 
 
 def gerar_resposta_em_frequencia(feather: str|os.PathLike, dac: int, imu: str) -> np.array:
+    """
+    Retorna um np.array contendo a resposta em frequência da amostra fornecida.
+
+    Parameters
+    ----------
+    feather : str | os.PathLike
+        Caminho do arquivo feather referente à amostra.
+    dac : int
+        Atuador DAC utilizado no experimento (1 -> dac1, 2 -> dac2 ...)
+    imu : str
+        Sensor IMU de interesse.
+
+    Returns
+    -------
+    np.array[amplitudes, frequências]
+        Resposta em frequência.
+    """    
     data = DataHandler(feather, dac=f'dac{dac}', imu=imu)
     data.generate_fir_freq()
     
@@ -181,7 +198,25 @@ def agrupar_por_desgaste(feather_paths: list[str|os.PathLike], *, niveis_desgast
     return sorted_paths    
     
     
-def importar_respostas_em_frequencia(path: str|os.PathLike, imus = list[str]) -> pd.DataFrame:
+def importar_respostas_em_frequencia(path: str|os.PathLike, imus: list[str]) -> pd.DataFrame:
+    """
+    Encapsula todo o processo de importação dos arquivos, geração das respostas em frequência e preparação do data frame.
+    
+    Encontra recursivamente os arquivos feather presentes em (path) e suas subpastas.
+    Computa as respostas em frequência com processamento multi core.
+
+    Parameters
+    ----------
+    path : str | os.PathLike
+        Caminho onde a busca recursiva de arquivos é iniciada.
+    imus : list[str]
+        Lista com os sensores IMU de interesse.
+
+    Returns
+    -------
+    pd.DataFrame
+        Data frame com as respostas em frequência já catalogadas por desgaste.
+    """    
     feathers_paths = achar_feathers(path)
     feathers_agrupados = agrupar_por_desgaste(feathers_paths)
     
