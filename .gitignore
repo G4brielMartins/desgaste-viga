@@ -2,3 +2,4 @@
 Dados/
 __pycache__/
 Tools/__pycache__
+autoencoder_with_classifier.h5
