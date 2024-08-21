@@ -3,3 +3,6 @@ Dados/
 __pycache__/
 Tools/__pycache__
 autoencoder_with_classifier.h5
+autoencoder_with_classifier.json
+ActVibModules-master/
+Autoencoder(tests).py

@@ -234,3 +234,49 @@ def importar_respostas_em_frequencia(path: str|os.PathLike, imus: list[str]) -> 
             dfs.append(pd.DataFrame(amplitudes, index=index))
     
     return pd.concat(dfs)
+
+def import_data(feathers_catalogados: list[list[str]], imu: str) -> pd.DataFrame:
+    """
+    Importa e processa os dados de ressonância dos arquivos .feather, agrupando-os por nível de desgaste.
+
+    Utiliza a função `achar_ressonancias` para extrair dados de ressonância dos arquivos e organiza 
+    os resultados em um DataFrame, onde cada linha representa uma amostra de ressonância.
+
+    Parameters
+    ----------
+    feathers_catalogados : list[list[str]]
+        Lista de listas, onde cada sublista contém caminhos de arquivos .feather agrupados por nível de desgaste.
+    imu : str
+        Nome do sensor IMU a ser utilizado na análise (por exemplo, 'imu1accz', 'imu2accz').
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame com os dados de ressonância processados. O índice é um MultiIndex com os níveis de 
+        desgaste e os nomes das amostras, e as colunas representam os valores de frequência e amplitude 
+        das ressonâncias.
+    """
+    dfs = []
+    for desgaste_lvl, feathers in enumerate(feathers_catalogados):
+        if feathers == [None]:
+            continue # ignora níveis de desgaste sem amostras
+        
+        name_tags = [os.path.basename(feather)[:-8] for feather in feathers]  # Nome dos arquivos sem extensão
+        
+        # Processa os dados em paralelo usando a função achar_ressonancias
+        with Pool() as pool:
+            inputs = [(feather, imu) for feather in feathers]
+            data = list(pool.starmap(achar_ressonancias, inputs))
+        
+        # Converte os dados em arrays 1D (flatten) para cada amostra
+        flat_data = [np.concatenate(i, axis=None) for i in data]  # Usando np.concatenate para unificar dados
+        
+        # Cria um MultiIndex para o DataFrame
+        index = pd.MultiIndex.from_product([[desgaste_lvl], name_tags], names=["Desgaste", "Amostra"])
+        
+        # Adiciona o DataFrame ao resultado
+        dfs.append(pd.DataFrame(flat_data, index=index))
+    
+    # Combina todos os DataFrames em um único DataFrame
+    return pd.concat(dfs)
+
